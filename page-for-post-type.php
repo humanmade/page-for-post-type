@@ -1,12 +1,12 @@
 <?php
 /**
-* Plugin Name: Page for post type
-* Plugin URI: https://github.com/humanmade/page-for-post-type
-* Description: Allows you to set pages for any custom post type archive
-* Version: 0.1
-* Author: Human Made Limited
-* Author URI: http://hmn.md
-*/
+ * Plugin Name: Page for post type
+ * Plugin URI: https://github.com/humanmade/page-for-post-type
+ * Description: Allows you to set pages for any custom post type archive
+ * Version: 0.1
+ * Author: Human Made Limited
+ * Author URI: http://hmn.md
+ */
 
 add_action( 'plugins_loaded', array( 'Page_For_Post_Type', 'get_instance' ) );
 
@@ -31,6 +31,9 @@ class Page_For_Post_Type {
 		// update post type objects
 		add_action( 'registered_post_type', array( $this, 'update_post_type' ), 10, 2 );
 
+		// menu classes
+		add_filter( 'wp_nav_menu_objects', array( $this, 'filter_wp_nav_menu_objects' ), 1, 2 );
+
 	}
 
 	public function admin_init() {
@@ -44,13 +47,13 @@ class Page_For_Post_Type {
 		// add to excludes
 		self::$excludes[] = get_option( 'page_for_posts' );
 
-		foreach( $cpts as $cpt ) {
+		foreach ( $cpts as $cpt ) {
 
 			if ( ! $cpt->has_archive ) {
 				continue;
 			}
 
-			$id = "page_for_{$cpt->name}";
+			$id    = "page_for_{$cpt->name}";
 			$value = get_option( $id );
 
 			// keep track of unavailable pages for selection
@@ -59,7 +62,7 @@ class Page_For_Post_Type {
 			}
 
 			// flush rewrite rules when the option is changed
-			register_setting( 'reading', $id, function( $new_value ) use( $value ) {
+			register_setting( 'reading', $id, function ( $new_value ) use ( $value ) {
 				if ( $new_value !== $value ) {
 					flush_rewrite_rules( true );
 				}
@@ -67,9 +70,9 @@ class Page_For_Post_Type {
 			} );
 
 			add_settings_field( $id, $cpt->labels->name, array( $this, 'cpt_field' ), 'reading', 'page_for_post_type', array(
-				'name' => $id,
+				'name'      => $id,
 				'post_type' => $cpt,
-				'value' => $value
+				'value'     => $value
 			) );
 
 		}
@@ -79,20 +82,20 @@ class Page_For_Post_Type {
 	public function cpt_field( $args ) {
 
 		wp_dropdown_pages( array(
-			'name' => esc_attr( $args['name'] ),
-			'id' => esc_attr( $args['name'] . '_dropdown' ),
-			'selected' => intval( $args['value'] ),
+			'name'             => esc_attr( $args['name'] ),
+			'id'               => esc_attr( $args['name'] . '_dropdown' ),
+			'selected'         => intval( $args['value'] ),
 			'show_option_none' => sprintf( __( 'Default (/%s/)' ), is_string( $args['post_type']->has_archive ) ?
 				$args['post_type']->has_archive :
 				$args['post_type']->name ),
-			'exclude' => $this->get_excludes( $args['value'] )
+			'exclude'          => $this->get_excludes( $args['value'] )
 		) );
 
 	}
 
 	public function get_excludes( $value ) {
 		$excludes = array_map( 'intval', self::$excludes );
-		$excludes = array_filter( $excludes, function( $exclude ) use( $value ) {
+		$excludes = array_filter( $excludes, function ( $exclude ) use ( $value ) {
 			return $exclude && intval( $exclude ) !== intval( $value );
 		} );
 		return $excludes;
@@ -112,7 +115,7 @@ class Page_For_Post_Type {
 		$slug = str_replace( home_url(), '', $slug );
 		$slug = trim( $slug, '/' );
 
-		$args->rewrite = wp_parse_args( array( 'slug' => $slug ), (array)$args->rewrite );
+		$args->rewrite     = wp_parse_args( array( 'slug' => $slug ), (array) $args->rewrite );
 		$args->has_archive = $slug;
 
 		// rebuild rewrite rules
@@ -137,7 +140,7 @@ class Page_For_Post_Type {
 				}
 			}
 
-			$permastruct_args = $args->rewrite;
+			$permastruct_args         = $args->rewrite;
 			$permastruct_args['feed'] = $permastruct_args['feeds'];
 			add_permastruct( $post_type, "{$args->rewrite['slug']}/%$post_type%", $permastruct_args );
 
@@ -145,6 +148,32 @@ class Page_For_Post_Type {
 
 		// update the global
 		$wp_post_types[ $post_type ] = $args;
+	}
+
+	public function filter_wp_nav_menu_objects( $sorted_items, $args ) {
+
+		$cpts = get_post_types( array(), 'objects' );
+
+		foreach ( $cpts as $cpt ) {
+			if ( ! $cpt->has_archive ) {
+				continue;
+			}
+
+			$page_id = get_option( "page_for_{$cpt->name}" );
+
+			foreach ( $sorted_items as &$item ) {
+				if ( $item->type === 'post_type' && $item->object === 'page' && intval( $item->object_id ) === intval( $page_id ) ) {
+					if ( is_singular( $cpt->name ) ) {
+						$item->classes[] = 'current-menu-item-ancestor';
+					}
+					if ( is_post_type_archive( $cpt->name ) ) {
+						$item->classes[] = 'current-menu-item';
+					}
+				}
+			}
+		}
+
+		return $sorted_items;
 	}
 
 }
