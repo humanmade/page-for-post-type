@@ -150,27 +150,57 @@ class Page_For_Post_Type {
 		$wp_post_types[ $post_type ] = $args;
 	}
 
+	/**
+	 * Make sure menu items for our pages get the correct classes assigned
+	 *
+	 * @param $sorted_items
+	 * @param $args
+	 * @return array
+	 */
 	public function filter_wp_nav_menu_objects( $sorted_items, $args ) {
 
-		$cpts = get_post_types( array(), 'objects' );
+		$post_types       = get_post_types( array(), 'objects' );
+		$page_ids         = array();
+		$queried_object   = get_queried_object();
+		$object_post_type = property_exists( $queried_object, 'post_type' ) ? $queried_object->post_type : false;
 
-		foreach ( $cpts as $cpt ) {
-			if ( ! $cpt->has_archive ) {
+		if ( ! $object_post_type ) {
+			return $sorted_items;
+		}
+
+		foreach ( $post_types as $post_type ) {
+			if ( ! $post_type->has_archive && 'post' !== $post_type->name ) {
 				continue;
 			}
 
-			$page_id = get_option( "page_for_{$cpt->name}" );
+			if ( 'post' === $post_type->name ) {
+				$page_id = get_option( 'page_for_posts' );
+			} else {
+				$page_id = get_option( "page_for_{$post_type->name}" );
+			}
 
-			foreach ( $sorted_items as &$item ) {
-				if ( $item->type === 'post_type' && $item->object === 'page' && intval( $item->object_id ) === intval( $page_id ) ) {
-					if ( is_singular( $cpt->name ) ) {
-						$item->classes[] = 'current-menu-item-ancestor';
-						$sorted_items = $this->add_ancestor_class( $item, $sorted_items );
-					}
-					if ( is_post_type_archive( $cpt->name ) ) {
-						$item->classes[] = 'current-menu-item';
-						$sorted_items = $this->add_ancestor_class( $item, $sorted_items );
-					}
+			if ( ! $page_id ) {
+				continue;
+			}
+
+			$page_ids[ $post_type->name ] = $page_id;
+		}
+
+		if ( ! isset( $page_ids[ $object_post_type ] ) ) {
+			return $sorted_items;
+		}
+
+		foreach ( $sorted_items as &$item ) {
+			if ( $item->type === 'post_type' && $item->object === 'page' && intval( $item->object_id ) === intval( $page_ids[ $object_post_type ] ) ) {
+				if ( is_singular( $object_post_type ) ) {
+					$item->classes[]             = 'current-menu-item-ancestor';
+					$item->current_item_ancestor = true;
+					$sorted_items                = $this->add_ancestor_class( $item, $sorted_items );
+				}
+				if ( is_post_type_archive( $object_post_type ) ) {
+					$item->classes[]    = 'current-menu-item';
+					$item->current_item = true;
+					$sorted_items       = $this->add_ancestor_class( $item, $sorted_items );
 				}
 			}
 		}
@@ -182,7 +212,7 @@ class Page_For_Post_Type {
 	 * Recursively set the ancestor class
 	 *
 	 * @param object $child
-	 * @param array $items
+	 * @param array  $items
 	 * @return array
 	 */
 	protected function add_ancestor_class( $child, $items ) {
@@ -191,9 +221,10 @@ class Page_For_Post_Type {
 			return $items;
 		}
 
-		foreach( $items as &$item ) {
+		foreach ( $items as $item ) {
 			if ( intval( $item->ID ) === intval( $child->menu_item_parent ) ) {
-				$item->classes[] = 'current-menu-item-ancestor';
+				$item->classes[]             = 'current-menu-item-ancestor';
+				$item->current_item_ancestor = true;
 				if ( intval( $item->menu_item_parent ) ) {
 					$items = $this->add_ancestor_class( $item, $items );
 				}
