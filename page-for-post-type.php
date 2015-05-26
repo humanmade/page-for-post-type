@@ -165,15 +165,43 @@ class Page_For_Post_Type {
 				if ( $item->type === 'post_type' && $item->object === 'page' && intval( $item->object_id ) === intval( $page_id ) ) {
 					if ( is_singular( $cpt->name ) ) {
 						$item->classes[] = 'current-menu-item-ancestor';
+						$sorted_items = $this->add_ancestor_class( $item, $sorted_items );
 					}
 					if ( is_post_type_archive( $cpt->name ) ) {
 						$item->classes[] = 'current-menu-item';
+						$sorted_items = $this->add_ancestor_class( $item, $sorted_items );
 					}
 				}
 			}
 		}
 
 		return $sorted_items;
+	}
+
+	/**
+	 * Recursively set the ancestor class
+	 *
+	 * @param object $child
+	 * @param array $items
+	 * @return array
+	 */
+	protected function add_ancestor_class( $child, $items ) {
+
+		if ( ! intval( $child->menu_item_parent ) ) {
+			return $items;
+		}
+
+		foreach( $items as &$item ) {
+			if ( intval( $item->ID ) === intval( $child->menu_item_parent ) ) {
+				$item->classes[] = 'current-menu-item-ancestor';
+				if ( intval( $item->menu_item_parent ) ) {
+					$items = $this->add_ancestor_class( $item, $items );
+				}
+				break;
+			}
+		}
+
+		return $items;
 	}
 
 }
