@@ -159,9 +159,14 @@ class Page_For_Post_Type {
 	 */
 	public function filter_wp_nav_menu_objects( $sorted_items, $args ) {
 
-		$post_types       = get_post_types( array(), 'objects' );
-		$page_ids         = array();
-		$queried_object   = get_queried_object();
+		$post_types     = get_post_types( array(), 'objects' );
+		$page_ids       = array();
+		$queried_object = get_queried_object();
+
+		if ( ! $queried_object ) {
+			return $sorted_items;
+		}
+
 		$object_post_type = property_exists( $queried_object, 'post_type' ) ? $queried_object->post_type : false;
 
 		if ( ! $object_post_type ) {
