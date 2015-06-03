@@ -29,7 +29,7 @@ class Page_For_Post_Type {
 		add_action( 'admin_init', array( $this, 'admin_init' ) );
 
 		// update post type objects
-		add_action( 'registered_post_type', array( $this, 'update_post_type' ), 10, 2 );
+		add_action( 'registered_post_type', array( $this, 'update_post_type' ), 11, 2 );
 
 		// menu classes
 		add_filter( 'wp_nav_menu_objects', array( $this, 'filter_wp_nav_menu_objects' ), 1, 2 );
@@ -110,12 +110,16 @@ class Page_For_Post_Type {
 			return;
 		}
 
+		// get the old slug
+		$args->rewrite = (array) $args->rewrite;
+		$old_slug      = isset( $args->rewrite['slug'] ) ? $args->rewrite['slug'] : $post_type;
+
 		// get page slug
 		$slug = get_permalink( $post_type_page );
 		$slug = str_replace( home_url(), '', $slug );
 		$slug = trim( $slug, '/' );
 
-		$args->rewrite     = wp_parse_args( array( 'slug' => $slug ), (array) $args->rewrite );
+		$args->rewrite     = wp_parse_args( array( 'slug' => $slug ), $args->rewrite );
 		$args->has_archive = $slug;
 
 		// rebuild rewrite rules
@@ -142,7 +146,16 @@ class Page_For_Post_Type {
 
 			$permastruct_args         = $args->rewrite;
 			$permastruct_args['feed'] = $permastruct_args['feeds'];
-			add_permastruct( $post_type, "{$args->rewrite['slug']}/%$post_type%", $permastruct_args );
+
+
+			// support plugins that enable 'permastruct' option
+			if ( isset( $args->rewrite['permastruct'] ) ) {
+				$permastruct = str_replace( $old_slug, $slug, $args->rewrite['permastruct'] );
+			} else {
+				$permastruct = "{$args->rewrite['slug']}/%$post_type%";
+			}
+
+			add_permastruct( $post_type, $permastruct, $permastruct_args );
 
 		}
 
