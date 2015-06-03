@@ -146,8 +146,7 @@ class Page_For_Post_Type {
 
 			$permastruct_args         = $args->rewrite;
 			$permastruct_args['feed'] = $permastruct_args['feeds'];
-
-
+			
 			// support plugins that enable 'permastruct' option
 			if ( isset( $args->rewrite['permastruct'] ) ) {
 				$permastruct = str_replace( $old_slug, $slug, $args->rewrite['permastruct'] );
