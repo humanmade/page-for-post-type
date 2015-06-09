@@ -179,7 +179,15 @@ class Page_For_Post_Type {
 			return $sorted_items;
 		}
 
-		$object_post_type = property_exists( $queried_object, 'post_type' ) ? $queried_object->post_type : false;
+		$object_post_type = false;
+
+		if ( is_singular() ) {
+			$object_post_type = $queried_object->post_type;
+		}
+
+		if ( is_post_type_archive() ) {
+			$object_post_type = $queried_object->name;
+		}
 
 		if ( ! $object_post_type ) {
 			return $sorted_items;
