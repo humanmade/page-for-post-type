@@ -12,7 +12,9 @@ add_action( 'plugins_loaded', array( 'Page_For_Post_Type', 'get_instance' ) );
 
 class Page_For_Post_Type {
 
-	public static $excludes = array();
+	protected $excludes = array();
+
+	protected $original_slugs = array();
 
 	protected static $instance;
 
@@ -37,6 +39,10 @@ class Page_For_Post_Type {
 		// customiser
 		add_action( 'customize_register', array( $this, 'action_customize_register' ) );
 
+		// post status changes / deletion
+		add_action( 'transition_post_status', array( $this, 'action_transition_post_status' ), 10, 3 );
+		add_action( 'deleted_post', array( $this, 'action_deleted_post' ), 10 );
+
 	}
 
 	public function admin_init() {
@@ -47,9 +53,6 @@ class Page_For_Post_Type {
 
 		add_settings_section( 'page_for_post_type', __( 'Pages for post type archives', 'pfpt' ), '__return_false', 'reading' );
 
-		// add to excludes
-		self::$excludes[] = get_option( 'page_for_posts' );
-
 		foreach ( $cpts as $cpt ) {
 
 			if ( ! $cpt->has_archive ) {
@@ -59,18 +62,8 @@ class Page_For_Post_Type {
 			$id    = "page_for_{$cpt->name}";
 			$value = get_option( $id );
 
-			// keep track of unavailable pages for selection
-			if ( $value ) {
-				self::$excludes[] = $value;
-			}
-
 			// flush rewrite rules when the option is changed
-			register_setting( 'reading', $id, function ( $new_value ) use ( $value ) {
-				if ( $new_value !== $value ) {
-					flush_rewrite_rules();
-				}
-				return intval( $new_value );
-			} );
+			register_setting( 'reading', $id, array( $this, 'validate_field' ) );
 
 			add_settings_field( $id, $cpt->labels->name, array( $this, 'cpt_field' ), 'reading', 'page_for_post_type', array(
 				'name'      => $id,
@@ -84,14 +77,13 @@ class Page_For_Post_Type {
 
 	public function cpt_field( $args ) {
 
+		$value = intval( $args['value'] );
+
 		wp_dropdown_pages( array(
-			'name'             => esc_attr( $args['name'] ),
-			'id'               => esc_attr( $args['name'] . '_dropdown' ),
-			'selected'         => intval( $args['value'] ),
-			'show_option_none' => sprintf( __( 'Default (/%s/)' ), is_string( $args['post_type']->has_archive ) ?
-				$args['post_type']->has_archive :
-				$args['post_type']->name ),
-			'exclude'          => $this->get_excludes( $args['value'] )
+			'name'     => esc_attr( $args['name'] ),
+			'id'       => esc_attr( $args['name'] . '_dropdown' ),
+			'selected' => $value,
+			'show_option_none' => sprintf( __( 'Default (/%s/)' ), $this->original_slugs[ $args['post_type']->name ] ),
 		) );
 
 	}
@@ -99,9 +91,6 @@ class Page_For_Post_Type {
 	public function action_customize_register( WP_Customize_Manager $wp_customize ) {
 
 		$cpts = get_post_types( array(), 'objects' );
-
-		// add to excludes
-		self::$excludes[] = get_option( 'page_for_posts' );
 
 		$wp_customize->add_section( 'page_for_post_type', array(
 			'title' => __( 'Pages for post type archives', 'pfpt' ),
@@ -113,43 +102,82 @@ class Page_For_Post_Type {
 				continue;
 			}
 
-			$id    = "page_for_{$cpt->name}";
-			$value = get_option( $id );
-
-			// keep track of unavailable pages for selection
-			if ( $value ) {
-				self::$excludes[] = $value;
-			}
+			$id = "page_for_{$cpt->name}";
 
 			$wp_customize->add_setting( $id, array(
 				'type'              => 'option',
 				'capability'        => 'manage_options',
 				'default'           => 0,
-				'sanitize_callback' => function ( $new_value ) use ( $value ) {
-					if ( $new_value !== $value ) {
-						flush_rewrite_rules();
-					}
-					return intval( $new_value );
-				},
+				'sanitize_callback' => array( $this, 'validate_field' ),
 			) );
 			$wp_customize->add_control( $id, array(
-				'type'            => 'dropdown-pages',
-				'section'         => 'page_for_post_type', // Required, core or custom.
-				'label'           => $cpt->labels->name,
+				'type'    => 'dropdown-pages',
+				'section' => 'page_for_post_type', // Required, core or custom.
+				'label'   => $cpt->labels->name,
 			) );
 
 		}
 
 	}
 
-	public function get_excludes( $value ) {
-		$excludes = array_map( 'intval', self::$excludes );
-		$excludes = array_filter( $excludes, function ( $exclude ) use ( $value ) {
-			return $exclude && intval( $exclude ) !== intval( $value );
-		} );
-		return $excludes;
+	/**
+	 * Flush rewrites and checks if the ID has been used already on this save
+	 *
+	 * @param $new_value
+	 * @return int
+	 */
+	public function validate_field( $new_value ) {
+		flush_rewrite_rules();
+		if ( in_array( $new_value, $this->excludes ) ) {
+			return 0;
+		}
+		$this->excludes[] = $new_value;
+		return intval( $new_value );
 	}
 
+
+	/**
+	 * Delete the setting for the corresponding post type if the page status
+	 * is transitioned to anything other than published
+	 *
+	 * @param         $new_status
+	 * @param         $old_status
+	 * @param WP_Post $post
+	 */
+	public function action_transition_post_status( $new_status, $old_status, WP_Post $post ) {
+
+		if ( 'publish' !== $new_status ) {
+			$post_type = array_search( $post->ID, $this->get_page_ids() );
+			if ( $post_type ) {
+				delete_option( "page_for_{$post_type}" );
+				flush_rewrite_rules();
+			}
+		}
+
+	}
+
+	/**
+	 * Delete relevant option if a page for the archive is deleted
+	 *
+	 * @param int $post_id
+	 */
+	public function action_deleted_post( $post_id ) {
+
+		$post_type = array_search( $post_id, $this->get_page_ids() );
+		if ( $post_type ) {
+			delete_option( "page_for_{$post_type}" );
+			flush_rewrite_rules();
+		}
+
+	}
+
+	/**
+	 * Modifies the post type object to update the permastructure based
+	 * on the page chosen
+	 *
+	 * @param $post_type
+	 * @param $args
+	 */
 	public function update_post_type( $post_type, $args ) {
 		global $wp_post_types, $wp_rewrite;
 
@@ -159,9 +187,17 @@ class Page_For_Post_Type {
 			return;
 		}
 
+		// make sure we don't create rules for an unpublished page preview URL
+		if ( 'publish' !== get_post_status( $post_type_page ) ) {
+			return;
+		}
+
 		// get the old slug
 		$args->rewrite = (array) $args->rewrite;
 		$old_slug      = isset( $args->rewrite['slug'] ) ? $args->rewrite['slug'] : $post_type;
+
+		// store this for our options page
+		$this->original_slugs[ $post_type ] = $old_slug;
 
 		// get page slug
 		$slug = get_permalink( $post_type_page );
@@ -220,8 +256,6 @@ class Page_For_Post_Type {
 	 */
 	public function filter_wp_nav_menu_objects( $sorted_items, $args ) {
 
-		$post_types     = get_post_types( array(), 'objects' );
-		$page_ids       = array();
 		$queried_object = get_queried_object();
 
 		if ( ! $queried_object ) {
@@ -242,23 +276,8 @@ class Page_For_Post_Type {
 			return $sorted_items;
 		}
 
-		foreach ( $post_types as $post_type ) {
-			if ( ! $post_type->has_archive && 'post' !== $post_type->name ) {
-				continue;
-			}
-
-			if ( 'post' === $post_type->name ) {
-				$page_id = get_option( 'page_for_posts' );
-			} else {
-				$page_id = get_option( "page_for_{$post_type->name}" );
-			}
-
-			if ( ! $page_id ) {
-				continue;
-			}
-
-			$page_ids[ $post_type->name ] = $page_id;
-		}
+		// get page ID array
+		$page_ids = $this->get_page_ids();
 
 		if ( ! isset( $page_ids[ $object_post_type ] ) ) {
 			return $sorted_items;
@@ -280,6 +299,40 @@ class Page_For_Post_Type {
 		}
 
 		return $sorted_items;
+	}
+
+	/**
+	 * Protected methods
+	 */
+
+	/**
+	 * Gets an array with post types as keys and corresponding page IDs as values
+	 *
+	 * @return array
+	 */
+	protected function get_page_ids() {
+
+		$page_ids = array();
+
+		foreach ( get_post_types( array(), 'objects' ) as $post_type ) {
+			if ( ! $post_type->has_archive ) {
+				continue;
+			}
+
+			if ( 'post' === $post_type->name ) {
+				$page_id = get_option( 'page_for_posts' );
+			} else {
+				$page_id = get_option( "page_for_{$post_type->name}" );
+			}
+
+			if ( ! $page_id ) {
+				continue;
+			}
+
+			$page_ids[ $post_type->name ] = $page_id;
+		}
+
+		return $page_ids;
 	}
 
 	/**
