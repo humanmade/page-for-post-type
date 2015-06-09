@@ -363,3 +363,29 @@ class Page_For_Post_Type {
 	}
 
 }
+
+if ( ! function_exists( 'get_page_for_post_type' ) ) {
+
+	/**
+	 * Get the page ID for the given or current post type
+	 *
+	 * @param bool|string $post_type
+	 * @return bool|int
+	 */
+	function get_page_for_post_type( $post_type = false ) {
+		if ( ! $post_type && is_post_type_archive() ) {
+			$post_type = get_queried_object()->name;
+		}
+		if ( ! $post_type && is_singular() ) {
+			$post_type = get_queried_object()->post_type;
+		}
+		if ( ! $post_type && in_the_loop() ) {
+			$post_type = get_post_type();
+		}
+		if ( $post_type && in_array( $post_type, get_post_types() ) ) {
+			return get_option( "page_for_{$post_type}", false );
+		}
+		return false;
+	}
+
+}
