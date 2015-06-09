@@ -34,6 +34,9 @@ class Page_For_Post_Type {
 		// menu classes
 		add_filter( 'wp_nav_menu_objects', array( $this, 'filter_wp_nav_menu_objects' ), 1, 2 );
 
+		// customiser
+		add_action( 'customize_register', array( $this, 'action_customize_register' ) );
+
 	}
 
 	public function admin_init() {
@@ -64,7 +67,7 @@ class Page_For_Post_Type {
 			// flush rewrite rules when the option is changed
 			register_setting( 'reading', $id, function ( $new_value ) use ( $value ) {
 				if ( $new_value !== $value ) {
-					flush_rewrite_rules( true );
+					flush_rewrite_rules();
 				}
 				return intval( $new_value );
 			} );
@@ -90,6 +93,52 @@ class Page_For_Post_Type {
 				$args['post_type']->name ),
 			'exclude'          => $this->get_excludes( $args['value'] )
 		) );
+
+	}
+
+	public function action_customize_register( WP_Customize_Manager $wp_customize ) {
+
+		$cpts = get_post_types( array(), 'objects' );
+
+		// add to excludes
+		self::$excludes[] = get_option( 'page_for_posts' );
+
+		$wp_customize->add_section( 'page_for_post_type', array(
+			'title' => __( 'Pages for post type archives', 'pfpt' ),
+		) );
+
+		foreach ( $cpts as $cpt ) {
+
+			if ( ! $cpt->has_archive ) {
+				continue;
+			}
+
+			$id    = "page_for_{$cpt->name}";
+			$value = get_option( $id );
+
+			// keep track of unavailable pages for selection
+			if ( $value ) {
+				self::$excludes[] = $value;
+			}
+
+			$wp_customize->add_setting( $id, array(
+				'type'              => 'option',
+				'capability'        => 'manage_options',
+				'default'           => 0,
+				'sanitize_callback' => function ( $new_value ) use ( $value ) {
+					if ( $new_value !== $value ) {
+						flush_rewrite_rules();
+					}
+					return intval( $new_value );
+				},
+			) );
+			$wp_customize->add_control( $id, array(
+				'type'            => 'dropdown-pages',
+				'section'         => 'page_for_post_type', // Required, core or custom.
+				'label'           => $cpt->labels->name,
+			) );
+
+		}
 
 	}
 
@@ -146,7 +195,7 @@ class Page_For_Post_Type {
 
 			$permastruct_args         = $args->rewrite;
 			$permastruct_args['feed'] = $permastruct_args['feeds'];
-			
+
 			// support plugins that enable 'permastruct' option
 			if ( isset( $args->rewrite['permastruct'] ) ) {
 				$permastruct = str_replace( $old_slug, $slug, $args->rewrite['permastruct'] );
