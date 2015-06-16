@@ -80,9 +80,9 @@ class Page_For_Post_Type {
 		$value = intval( $args['value'] );
 
 		wp_dropdown_pages( array(
-			'name'     => esc_attr( $args['name'] ),
-			'id'       => esc_attr( $args['name'] . '_dropdown' ),
-			'selected' => $value,
+			'name'             => esc_attr( $args['name'] ),
+			'id'               => esc_attr( $args['name'] . '_dropdown' ),
+			'selected'         => $value,
 			'show_option_none' => sprintf( __( 'Default (/%s/)' ), $this->original_slugs[ $args['post_type']->name ] ),
 		) );
 
@@ -255,6 +255,7 @@ class Page_For_Post_Type {
 	 * @return array
 	 */
 	public function filter_wp_nav_menu_objects( $sorted_items, $args ) {
+		global $wp_query;
 
 		$queried_object = get_queried_object();
 
@@ -270,6 +271,11 @@ class Page_For_Post_Type {
 
 		if ( is_post_type_archive() ) {
 			$object_post_type = $queried_object->name;
+		}
+
+		if ( is_archive() && is_string( $wp_query->get( 'post_type' ) ) ) {
+			$query_post_type  = $wp_query->get( 'post_type' );
+			$object_post_type = $query_post_type ?: 'post';
 		}
 
 		if ( ! $object_post_type ) {
@@ -294,6 +300,9 @@ class Page_For_Post_Type {
 					$item->classes[]    = 'current-menu-item';
 					$item->current_item = true;
 					$sorted_items       = $this->add_ancestor_class( $item, $sorted_items );
+				}
+				if ( is_archive() && $object_post_type === $wp_query->get( 'post_type' ) ) {
+					$sorted_items = $this->add_ancestor_class( $item, $sorted_items );
 				}
 			}
 		}
