@@ -79,11 +79,17 @@ class Page_For_Post_Type {
 
 		$value = intval( $args['value'] );
 
+        $default = $args['post_type']->name;
+
+        if ( isset( $this->original_slugs[ $args['post_type']->name ] ) ) {
+            $default = $this->original_slugs[ $args['post_type']->name ];
+        }
+
 		wp_dropdown_pages( array(
 			'name'             => esc_attr( $args['name'] ),
 			'id'               => esc_attr( $args['name'] . '_dropdown' ),
 			'selected'         => $value,
-			'show_option_none' => sprintf( __( 'Default (/%s/)' ), $this->original_slugs[ $args['post_type']->name ] ),
+			'show_option_none' => sprintf( __( 'Default (/%s/)' ), $default ),
 		) );
 
 	}
