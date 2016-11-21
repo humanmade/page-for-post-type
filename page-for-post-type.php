@@ -39,6 +39,9 @@ class Page_For_Post_Type {
 		// customiser
 		add_action( 'customize_register', array( $this, 'action_customize_register' ) );
 
+    // edit.php view
+    add_filter( 'display_post_states', array( $this, 'filter_display_post_states' ), 100, 2 );
+
 		// post status changes / deletion
 		add_action( 'transition_post_status', array( $this, 'action_transition_post_status' ), 10, 3 );
 		add_action( 'deleted_post', array( $this, 'action_deleted_post' ), 10 );
@@ -125,6 +128,21 @@ class Page_For_Post_Type {
 		}
 
 	}
+
+  public function filter_display_post_states( $post_states, $post ) {
+    $post_type = $post->post_type;
+    $cpts = get_post_types( array(), 'objects' );
+
+    if( 'page' === $post_type ) {
+      if( in_array( $post->ID, $this->get_page_ids() ) ) {
+        $cpt = array_search( $post->ID, $this->get_page_ids() );
+        $post_states["page_for_{$post_type}"] = sprintf( __( '%1$s archive', 'pfpt' ), $cpts[$cpt]->labels->name );
+      }
+    }
+
+    return $post_states;
+
+  }
 
 	/**
 	 * Flush rewrites and checks if the ID has been used already on this save
