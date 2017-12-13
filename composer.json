@@ -1,6 +1,6 @@
 {
 	"name": "humanmade/page-for-post-type,
-	"description": "llows you to set pages for any custom post type archive",
+	"description": "Allows you to set pages for any custom post type archive",
 	"homepage": "https://github.com/humanmade/page-for-post-type",
 	"keywords": [
 		"wordpress"
@@ -9,7 +9,7 @@
 	"authors": [
 		{
 			"name":"Human Made Limited",
-			"email":"support@humanmade.co.uk",
+			"email":"support@humanmade.com",
 			"homepage":"http://hmn.md/"
 		}
 	],
