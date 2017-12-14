@@ -39,8 +39,8 @@ class Page_For_Post_Type {
 		// customiser
 		add_action( 'customize_register', array( $this, 'action_customize_register' ) );
 
-    // edit.php view
-    add_filter( 'display_post_states', array( $this, 'filter_display_post_states' ), 100, 2 );
+		// edit.php view
+		add_filter( 'display_post_states', array( $this, 'filter_display_post_states' ), 100, 2 );
 
 		// post status changes / deletion
 		add_action( 'transition_post_status', array( $this, 'action_transition_post_status' ), 10, 3 );
@@ -82,11 +82,11 @@ class Page_For_Post_Type {
 
 		$value = intval( $args['value'] );
 
-        $default = $args['post_type']->name;
+        	$default = $args['post_type']->name;
 
-        if ( isset( $this->original_slugs[ $args['post_type']->name ] ) ) {
-            $default = $this->original_slugs[ $args['post_type']->name ];
-        }
+		if ( isset( $this->original_slugs[ $args['post_type']->name ] ) ) {
+			$default = $this->original_slugs[ $args['post_type']->name ];
+		}
 
 		wp_dropdown_pages( array(
 			'name'             => esc_attr( $args['name'] ),
@@ -129,20 +129,19 @@ class Page_For_Post_Type {
 
 	}
 
-  public function filter_display_post_states( $post_states, $post ) {
-    $post_type = $post->post_type;
-    $cpts = get_post_types( array(), 'objects' );
+	public function filter_display_post_states( $post_states, $post ) {
+		$post_type = $post->post_type;
+		$cpts = get_post_types( array(), 'objects' );
 
-    if( 'page' === $post_type ) {
-      if( in_array( $post->ID, $this->get_page_ids() ) ) {
-        $cpt = array_search( $post->ID, $this->get_page_ids() );
-        $post_states["page_for_{$post_type}"] = sprintf( __( '%1$s archive', 'pfpt' ), $cpts[$cpt]->labels->name );
-      }
-    }
+		if ( 'page' === $post_type ) {
+			if ( in_array( $post->ID, $this->get_page_ids() ) ) {
+				$cpt = array_search( $post->ID, $this->get_page_ids() );
+				$post_states["page_for_{$post_type}"] = sprintf( esc_html__( '%1$s archive', 'pfpt' ), $cpts[ $cpt ]->labels->name );
+			}
+		}
 
-    return $post_states;
-
-  }
+		return $post_states;
+	}
 
 	/**
 	 * Flush rewrites and checks if the ID has been used already on this save
