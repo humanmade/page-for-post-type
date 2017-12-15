@@ -3,7 +3,7 @@
  * Plugin Name: Page for post type
  * Plugin URI: https://github.com/humanmade/page-for-post-type
  * Description: Allows you to set pages for any custom post type archive
- * Version: 0.1
+ * Version: 0.2.0
  * Author: Human Made Limited
  * Author URI: http://hmn.md
  */
