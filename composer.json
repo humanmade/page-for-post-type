@@ -2,20 +2,21 @@
 	"name": "humanmade/page-for-post-type,
 	"description": "Allows you to set pages for any custom post type archive",
 	"homepage": "https://github.com/humanmade/page-for-post-type",
+	"version": "0.2.0",
 	"keywords": [
 		"wordpress"
 	],
-	"license": "GPL-2.0+",
+	"license": "GPL-3.0",
 	"authors": [
 		{
-			"name":"Human Made Limited",
-			"email":"support@humanmade.com",
-			"homepage":"https://humanmade.com"
+			"name": "Human Made Limited",
+			"email": "support@humanmade.com",
+			"homepage": "https://humanmade.com"
 		}
 	],
-	"support"    : {
-			"issues": "https://github.com/humanmade/page-for-post-type/issues",
-			"source": "https://github.com/humanmade/page-for-post-type"
+	"support": {
+		"issues": "https://github.com/humanmade/page-for-post-type/issues",
+		"source": "https://github.com/humanmade/page-for-post-type"
 	},
 	"type": "wordpress-plugin",
 	"require": {
