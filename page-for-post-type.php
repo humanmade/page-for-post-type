@@ -129,13 +129,20 @@ class Page_For_Post_Type {
 
 	}
 
+	/**
+	 * Add an indicator to show if a page is set as a post type archive.
+	 *
+	 * @param array   $post_states An array of post states to display after the post title.
+	 * @param WP_Post $post        The current post object.
+	 * @return array
+	 */
 	public function filter_display_post_states( $post_states, $post ) {
 		$post_type = $post->post_type;
-		$cpts = get_post_types( array(), 'objects' );
+		$cpts      = get_post_types( array( 'public' => true ), 'objects' );
 
 		if ( 'page' === $post_type ) {
 			if ( in_array( $post->ID, $this->get_page_ids() ) ) {
-				$cpt = array_search( $post->ID, $this->get_page_ids() );
+				$cpt                                  = array_search( $post->ID, $this->get_page_ids() );
 				$post_states["page_for_{$post_type}"] = sprintf( esc_html__( '%1$s archive', 'pfpt' ), $cpts[ $cpt ]->labels->name );
 			}
 		}
