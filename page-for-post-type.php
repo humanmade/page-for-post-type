@@ -259,6 +259,8 @@ class Page_For_Post_Type {
 				}
 			}
 
+			do_action("page_for_{$post_type}_rewrite_rules", $archive_slug, $post_type, $args);
+
 			$permastruct_args         = $args->rewrite;
 			$permastruct_args['feed'] = $permastruct_args['feeds'];
 
