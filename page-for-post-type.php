@@ -157,7 +157,9 @@ class Page_For_Post_Type {
 	 * @return int
 	 */
 	public function validate_field( $new_value ) {
-		flush_rewrite_rules();
+		if ( ! has_action( 'shutdown', 'flush_rewrite_rules' ) ) {
+			add_action( 'shutdown', 'flush_rewrite_rules', 10, 0 );
+		}
 		if ( in_array( $new_value, $this->excludes ) ) {
 			return 0;
 		}
